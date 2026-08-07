@@ -1,0 +1,120 @@
+import React from 'react';
+import { Product } from '../types';
+import { formatPrice, toPersianDigits } from '../utils/farsi';
+import { Star, ExternalLink, Store, Check, Percent } from 'lucide-react';
+
+interface ProductCardProps {
+  product: Product;
+  isSelected: boolean;
+  onToggleSelect: (id: string | number) => void;
+}
+
+export const ProductCard: React.FC<ProductCardProps> = ({
+  product,
+  isSelected,
+  onToggleSelect,
+}) => {
+  const hasDiscount = product.price.discount_percent > 0;
+
+  return (
+    <div 
+      className={`bg-white rounded-2xl border transition-all duration-200 hover:shadow-lg flex flex-col justify-between overflow-hidden relative ${
+        isSelected 
+          ? 'border-indigo-500 ring-2 ring-indigo-500/20 shadow-md' 
+          : 'border-slate-200 hover:border-slate-300 shadow-xs'
+      }`}
+    >
+      <div>
+        {/* Top Header Controls & Badges */}
+        <div className="p-3 pb-0 flex items-center justify-between gap-2 relative z-10">
+          
+          {/* Select Checkbox for CSV Batch Export */}
+          <button
+            type="button"
+            onClick={() => onToggleSelect(product.id)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+              isSelected
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center border ${
+              isSelected ? 'border-white bg-indigo-600' : 'border-slate-400 bg-white'
+            }`}>
+              {isSelected && <Check className="w-3 h-3 text-white stroke-[3]" />}
+            </div>
+            <span>{isSelected ? 'انتخاب شده' : 'انتخاب'}</span>
+          </button>
+
+          {/* Discount Badge */}
+          {hasDiscount && (
+            <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-2xs">
+              <Percent className="w-3 h-3" />
+              <span>{toPersianDigits(product.price.discount_percent)}٪</span>
+            </span>
+          )}
+        </div>
+
+        {/* Product Image Container */}
+        <div className="px-4 py-3 flex items-center justify-center h-48 bg-white relative">
+          <img
+            src={product.image}
+            alt={product.title_fa}
+            className="max-h-40 max-w-full object-contain hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            onError={(e) => {
+              // Fallback image if url is broken
+              (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=500&q=80';
+            }}
+          />
+        </div>
+
+        {/* Title & Specs */}
+        <div className="p-4 pt-1 border-t border-slate-100">
+          <h3 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-2 leading-relaxed min-h-[40px]" title={product.title_fa}>
+            {product.title_fa}
+          </h3>
+
+          {/* Seller & Brand Badge */}
+          <div className="flex items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500">
+            <span className="flex items-center gap-1 text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/80">
+              <Store className="w-3 h-3 text-slate-400" />
+              <span className="truncate max-w-[120px]">{product.seller}</span>
+            </span>
+
+            {/* Rating */}
+            <div className="flex items-center gap-1 bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-md font-bold">
+              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+              <span>{toPersianDigits(product.rating.rate.toFixed(1))}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer Price & Action */}
+      <div className="p-4 pt-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
+        <div className="flex flex-col">
+          {hasDiscount && (
+            <span className="text-[11px] text-slate-400 line-through font-medium">
+              {formatPrice(product.price.rrp_price, false)}
+            </span>
+          )}
+          <span className="text-sm sm:text-base font-extrabold text-slate-900">
+            {formatPrice(product.price.selling_price)}
+          </span>
+        </div>
+
+        <a
+          href={product.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="p-2 bg-white hover:bg-indigo-600 hover:text-white text-indigo-600 border border-slate-200 rounded-xl transition-all shadow-2xs group flex items-center justify-center"
+          title="مشاهده مستقیم در دیجی‌کالا"
+        >
+          <ExternalLink className="w-4 h-4" />
+        </a>
+      </div>
+
+    </div>
+  );
+};
