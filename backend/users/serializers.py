@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from django.contrib.auth import get_user_model
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 from users.validators import validate_phone_number
 
 User = get_user_model()
@@ -68,3 +70,17 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             email=email
         )
         return user
+
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    username_field = 'phone_number'
+
+    def validate(self, attrs):
+        data = super().validate(attrs)
+
+        data['user_id'] = self.user.id
+        data['first_name'] = self.user.first_name
+        data['last_name'] = self.user.last_name
+        data['phone_number'] = self.user.phone_number
+        data['email'] = self.user.email
+
+        return data
