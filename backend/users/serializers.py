@@ -41,8 +41,9 @@ class UserRegisterSerializer(serializers.ModelSerializer):
     )
     password_confirm = serializers.CharField(
         write_only=True,
-        required=False,
-        style={'input_type': 'password'}
+        required=True,
+        style={'input_type': 'password'},
+        error_messages={'required': 'وارد کردن تکرار کلمه عبور الزامی است.'}
     )
 
     class Meta:
@@ -55,11 +56,11 @@ class UserRegisterSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         password = attrs.get('password')
-        password_confirm = attrs.get('password_confirm', password)
+        password_confirm = attrs.get('password_confirm')
         if password != password_confirm:
-            raise serializers.ValidationError({'password_confirm': 'رمز عبور و تکرار آن یکسان نیستند.'})
-        attrs['password_confirm'] = password_confirm
+            raise serializers.ValidationError({'password_confirm': 'کلمه عبور و تکرار آن یکسان نیستند.'})
         return attrs
+
 
 
     def create(self, validated_data):

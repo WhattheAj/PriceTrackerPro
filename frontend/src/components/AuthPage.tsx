@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { AuthMode, User } from '../types';
-import { loginUser, signupUser } from '../services/auth';
+import { loginUserApi, registerUserApi } from '../services/auth';
 import { 
   User as UserIcon, 
   Smartphone, 
@@ -11,7 +11,6 @@ import {
   Coins, 
   Search, 
   FileSpreadsheet, 
-  ArrowRight,
   Tag
 } from 'lucide-react';
 
@@ -21,13 +20,15 @@ interface AuthPageProps {
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
-  const [mode, setMode] = useState<AuthMode>('signup'); // Default to signup to highlight initial tokens
+  const [mode, setMode] = useState<AuthMode>('signup');
   const [phone, setPhone] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -50,6 +51,14 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
         setError('لطفاً نام خانوادگی خود را وارد کنید.');
         return;
       }
+      if (!passwordConfirm) {
+        setError('لطفاً تکرار کلمه عبور را وارد کنید.');
+        return;
+      }
+      if (password !== passwordConfirm) {
+        setError('کلمه عبور و تکرار آن با یکدیگر مطابقت ندارند.');
+        return;
+      }
     }
 
     if (!password || password.length < 4) {
@@ -62,29 +71,52 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     try {
       let loggedUser: User;
       if (mode === 'signup') {
-        loggedUser = await registerUserApi(firstName.trim(), lastName.trim(), cleanPhone, password);
+        loggedUser = await registerUserApi(
+          firstName.trim(),
+          lastName.trim(),
+          cleanPhone,
+          password,
+          passwordConfirm,
+          email.trim()
+        );
       } else {
         loggedUser = await loginUserApi(cleanPhone, password);
       }
       onAuthSuccess(loggedUser);
     } catch (err: any) {
       console.error('Auth error:', err);
-      const apiErrorMsg = err.response?.data?.detail || err.response?.data?.error || 'خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش کنید.';
+      const resData = err.response?.data;
+      let apiErrorMsg = 'خطا در برقراری ارتباط با سرور. لطفاً مجدداً تلاش کنید.';
+
+      if (resData) {
+        if (typeof resData === 'string') {
+          apiErrorMsg = resData;
+        } else if (resData.detail) {
+          apiErrorMsg = resData.detail;
+        } else if (resData.password_confirm) {
+          apiErrorMsg = Array.isArray(resData.password_confirm) ? resData.password_confirm[0] : resData.password_confirm;
+        } else if (resData.phone_number) {
+          apiErrorMsg = Array.isArray(resData.phone_number) ? resData.phone_number[0] : resData.phone_number;
+        } else if (resData.password) {
+          apiErrorMsg = Array.isArray(resData.password) ? resData.password[0] : resData.password;
+        } else if (resData.non_field_errors) {
+          apiErrorMsg = Array.isArray(resData.non_field_errors) ? resData.non_field_errors[0] : resData.non_field_errors;
+        }
+      }
+
       setError(apiErrorMsg);
     } finally {
       setIsLoading(false);
     }
   };
 
-
   return (
     <div className="max-w-6xl mx-auto my-6 bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 overflow-hidden min-h-[640px]">
       <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[640px]">
         
-        {/* Left/Side Branding Panel */}
+        {/* Left Branding Panel */}
         <div className="lg:col-span-5 bg-slate-900 p-8 sm:p-12 flex flex-col justify-between text-white relative">
           <div>
-            {/* Logo */}
             <div className="flex items-center gap-3 mb-10">
               <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Tag className="w-5 h-5 text-white stroke-[2.5]" />
@@ -99,7 +131,6 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
               <span className="text-indigo-400 font-normal">برای خریدهای اقتصادی‌تر</span>
             </h1>
 
-            {/* Value Propositions */}
             <div className="space-y-6 my-8">
               <div className="flex items-start gap-3.5">
                 <div className="p-2 rounded-lg bg-slate-800 text-indigo-400 shrink-0">
@@ -197,7 +228,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               
-              {/* 1. Phone Number Field (Always First) */}
+              {/* Phone Number Field */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
                   شماره تلفن همراه
@@ -310,6 +341,36 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                 </div>
               </div>
 
+              {/* Password Confirm Field (Signup mode only) */}
+              {mode === 'signup' && (
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                    تکرار کلمه عبور
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showPasswordConfirm ? 'text' : 'password'}
+                      required
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      placeholder="••••••••"
+                      className="w-full pr-10 pl-10 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all ltr text-left"
+                      dir="ltr"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
+                      className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showPasswordConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -319,10 +380,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <>
-                    <span>{mode === 'login' ? 'ورود به پنل کاربری' : 'ثبت‌نام و دریافت ۱۰ توکن رایگان'}</span>
-                    <ArrowRight className="w-4 h-4 rotate-180" />
-                  </>
+                  <span>{mode === 'login' ? 'ورود به پنل کاربری' : 'ثبت‌نام و دریافت ۱۰ توکن رایگان'}</span>
                 )}
               </button>
             </form>
@@ -334,4 +392,3 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
     </div>
   );
 };
-

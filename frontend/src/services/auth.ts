@@ -23,7 +23,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-
+// Token Storage Helpers
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY_ACCESS);
 }
@@ -57,7 +57,7 @@ export function saveUser(user: User): void {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-
+// Django API Auth Functions (Ready for Django REST Framework + SimpleJWT)
 
 export async function loginUserApi(phoneNumber: string, password: string): Promise<User> {
   const response = await apiClient.post('/auth/login/', {
@@ -87,20 +87,22 @@ export async function registerUserApi(
   firstName: string,
   lastName: string,
   phoneNumber: string,
-  password: string
+  password: string,
+  passwordConfirm: string,
+  email?: string
 ): Promise<User> {
   await apiClient.post('/auth/register/', {
     first_name: firstName,
     last_name: lastName,
     phone_number: phoneNumber,
-    password,
-    password_confirm: password,
+    password: password,
+    password_confirm: passwordConfirm,
+    email: email ? email.trim() : undefined,
   });
 
   // Automatically log in after registration
   return await loginUserApi(phoneNumber, password);
 }
-
 
 export async function fetchUserProfileApi(): Promise<User | null> {
   const token = getAccessToken();
