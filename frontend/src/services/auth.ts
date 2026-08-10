@@ -7,7 +7,6 @@ const TOKEN_KEY_ACCESS = 'pricetracker_access_token';
 const TOKEN_KEY_REFRESH = 'pricetracker_refresh_token';
 const USER_KEY = 'pricetracker_user_data';
 
-// Axios Instance with Automatic Bearer Token Header
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -23,7 +22,36 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Token Storage Helpers
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        try {
+          const res = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+            refresh: refreshToken,
+          });
+          const newAccess = res.data.access;
+          if (newAccess) {
+            saveTokens(newAccess, refreshToken);
+            originalRequest.headers.Authorization = `Bearer ${newAccess}`;
+            return apiClient(originalRequest);
+          }
+        } catch {
+          clearTokens();
+          window.location.reload();
+        }
+      } else {
+        clearTokens();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export function getAccessToken(): string | null {
   return localStorage.getItem(TOKEN_KEY_ACCESS);
 }
@@ -57,8 +85,6 @@ export function saveUser(user: User): void {
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 }
 
-// Django API Auth Functions (Ready for Django REST Framework + SimpleJWT)
-
 export async function loginUserApi(phoneNumber: string, password: string): Promise<User> {
   const response = await apiClient.post('/auth/login/', {
     phone_number: phoneNumber,
@@ -68,13 +94,21 @@ export async function loginUserApi(phoneNumber: string, password: string): Promi
   const { access, refresh, user_id, first_name, last_name, phone_number, wallet_balance } = response.data;
   saveTokens(access, refresh);
 
+  let currentTokens = wallet_balance ?? 50;
+  try {
+    const walletRes = await apiClient.get('/wallet/balance/');
+    if (walletRes.data && typeof walletRes.data.tokens_remaining === 'number') {
+      currentTokens = walletRes.data.tokens_remaining;
+    }
+  } catch {}
+
   const user: User = {
     id: user_id || 'usr_1',
     name: `${first_name} ${last_name}`.trim(),
     firstName: first_name,
     lastName: last_name,
     phone: phone_number || phoneNumber,
-    tokens: wallet_balance ?? 50,
+    tokens: currentTokens,
     searchCount: 0,
     createdAt: new Date().toISOString(),
   };
@@ -100,7 +134,6 @@ export async function registerUserApi(
     email: email ? email.trim() : undefined,
   });
 
-  // Automatically log in after registration
   return await loginUserApi(phoneNumber, password);
 }
 
@@ -111,13 +144,22 @@ export async function fetchUserProfileApi(): Promise<User | null> {
   try {
     const response = await apiClient.get('/auth/profile/');
     const data = response.data;
+
+    let currentTokens = data.wallet_balance ?? 50;
+    try {
+      const walletRes = await apiClient.get('/wallet/balance/');
+      if (walletRes.data && typeof walletRes.data.tokens_remaining === 'number') {
+        currentTokens = walletRes.data.tokens_remaining;
+      }
+    } catch {}
+
     const user: User = {
       id: data.id,
       name: `${data.first_name} ${data.last_name}`.trim(),
       firstName: data.first_name,
       lastName: data.last_name,
       phone: data.phone_number,
-      tokens: data.wallet_balance ?? 50,
+      tokens: currentTokens,
       searchCount: data.search_count || 0,
       createdAt: data.date_joined || new Date().toISOString(),
     };

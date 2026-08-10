@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { User, Product, ViewMode, DisplayLayout, SearchHistoryItem } from './types';
 import { getSavedUser, logoutUser, fetchUserProfileApi } from './services/auth';
-import { searchDigikalaProductsApi } from './services/digikala';
+import { searchDigikalaProductsApi, exportProductsCSVApi, fetchSearchHistoryApi } from './services/digikala';
 import { exportProductsToCSV } from './utils/csvExporter';
 import { toPersianDigits, formatPrice } from './utils/farsi';
 
-// Components
 import { Header } from './components/Header';
 import { AuthPage } from './components/AuthPage';
 import { SearchBar } from './components/SearchBar';
 import { ProductCard } from './components/ProductCard';
 import { ProductTable } from './components/ProductTable';
+import { Pagination } from './components/Pagination';
 import { TokenModal } from './components/TokenModal';
 import { SearchHistoryModal } from './components/SearchHistoryModal';
 import { ProductCompareModal } from './components/ProductCompareModal';
@@ -31,26 +31,26 @@ import {
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [activeView, setActiveView] = useState<ViewMode>('auth'); // Default to Auth view
+  const [activeView, setActiveView] = useState<ViewMode>('auth');
   const [layoutMode, setLayoutMode] = useState<DisplayLayout>('grid');
 
-  // Search & Products
-  const [currentQuery, setCurrentQuery] = useState('لپ تاپ ریزر');
+  const [currentQuery, setCurrentQuery] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Selection & Filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
   const [selectedProductIds, setSelectedProductIds] = useState<Array<string | number>>([]);
   const [sortBy, setSortBy] = useState<'default' | 'price_asc' | 'price_desc' | 'discount' | 'rating'>('default');
 
-  // Modals
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
 
-  // Initialize User Profile on Mount from Django API
   useEffect(() => {
     async function initUser() {
       const saved = getSavedUser();
@@ -69,7 +69,6 @@ export default function App() {
     initUser();
   }, []);
 
-  // Handle Auth Login / Signup success
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser);
     setActiveView('dashboard');
@@ -82,8 +81,7 @@ export default function App() {
     setProducts([]);
   };
 
-  // Execute Digikala Search via Django API
-  const handleSearch = async (queryText: string, activeUser = user) => {
+  const handleSearch = async (queryText: string, pageNum = 1, activeUser = user) => {
     if (!activeUser) {
       setActiveView('auth');
       return;
@@ -99,16 +97,29 @@ export default function App() {
     setCurrentQuery(queryText);
 
     try {
-      // Fetch products and updated remaining tokens directly from Django Backend
-      const { products: fetchedProducts, remainingTokens } = await searchDigikalaProductsApi(queryText);
+      const res = await searchDigikalaProductsApi(queryText, pageNum);
 
-      // Update local user tokens balance from Django response
-      setUser((prev) => (prev ? { ...prev, tokens: remainingTokens } : null));
+      setUser((prev) => (prev ? { ...prev, tokens: res.remainingTokens } : null));
 
-      setProducts(fetchedProducts);
+      setProducts(res.products);
       setSelectedProductIds([]);
+      setTotalPages(res.totalPages);
+      setTotalItems(res.totalItems);
+      setCurrentPage(res.currentPage);
+
+      const newUrl = `${window.location.pathname}?q=${encodeURIComponent(queryText)}&page=${res.currentPage}`;
+      window.history.pushState({ path: newUrl }, '', newUrl);
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       console.error('Search error:', err);
+      if (err.response?.status === 401) {
+        logoutUser();
+        setUser(null);
+        setActiveView('auth');
+        setSearchError('نشست کاری شما منقضی شده است. لطفاً مجدداً وارد شوید.');
+        return;
+      }
       const msg = err.response?.data?.error || err.response?.data?.detail || 'خطا در دریافت اطلاعات از سرور. لطفاً مجدداً تلاش کنید.';
       setSearchError(msg);
     } finally {
@@ -116,16 +127,20 @@ export default function App() {
     }
   };
 
-
-  // Add Tokens to User Balance
-  const handleAddTokens = (amount: number) => {
-    const updated = addTokensToUser(amount);
-    if (updated) {
-      setUser(updated);
+  useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q');
+    const pageParam = parseInt(params.get('page') || '1', 10);
+    if (qParam && !products.length) {
+      handleSearch(qParam, pageParam, user);
     }
+  }, [user?.id]);
+
+  const handleAddTokens = (amount: number) => {
+    setUser((prev) => (prev ? { ...prev, tokens: prev.tokens + amount } : null));
   };
 
-  // Toggle selection for batch export or comparison
   const toggleSelectProduct = (id: string | number) => {
     setSelectedProductIds((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
@@ -140,53 +155,60 @@ export default function App() {
     }
   };
 
-  // CSV Export trigger
-  const handleExportCSV = () => {
+  const handleExportCSV = async () => {
     const exportList =
       selectedProductIds.length > 0
         ? products.filter((p) => selectedProductIds.includes(p.id))
         : products;
 
-    exportProductsToCSV(
-      exportList,
-      `pricetrackerpro_${currentQuery.replace(/\s+/g, '_')}.csv`
-    );
+    try {
+      await exportProductsCSVApi(exportList);
+    } catch {
+      exportProductsToCSV(
+        exportList,
+        `pricetrackerpro_${currentQuery.replace(/\s+/g, '_')}.csv`
+      );
+    }
   };
 
-  // Sorting products
   const sortedProducts = [...products].sort((a, b) => {
     if (sortBy === 'price_asc') return a.price.selling_price - b.price.selling_price;
     if (sortBy === 'price_desc') return b.price.selling_price - a.price.selling_price;
     if (sortBy === 'discount') return b.price.discount_percent - a.price.discount_percent;
     if (sortBy === 'rating') return b.rating.rate - a.rating.rate;
-    return 0; // default
+    return 0;
   });
 
   const selectedForCompare = products.filter((p) => selectedProductIds.includes(p.id));
 
+  const handleOpenHistoryModal = async () => {
+    setIsHistoryModalOpen(true);
+    try {
+      const logs = await fetchSearchHistoryApi();
+      setHistory(logs);
+    } catch {}
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-['Vazirmatn',sans-serif]">
       
-      {/* Header Bar */}
       <Header
         user={user}
         activeView={activeView}
         onSelectView={setActiveView}
         onOpenTokenModal={() => setIsTokenModalOpen(true)}
-        onOpenHistoryModal={() => setIsHistoryModalOpen(true)}
+        onOpenHistoryModal={handleOpenHistoryModal}
         onLogout={handleLogout}
       />
 
-      {/* Main View Area */}
       <main className="flex-1 pb-16">
-        {activeView === 'auth' ? (
+        {activeView === 'auth' || !user ? (
           <AuthPage
             onAuthSuccess={handleAuthSuccess}
           />
         ) : (
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
             
-            {/* Top User Balance Summary Banner */}
             <div className="bg-slate-900 text-white rounded-2xl p-6 mb-6 shadow-xl shadow-slate-200/50 border border-slate-800 relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1 relative z-10">
                 <div className="flex items-center gap-2">
@@ -197,12 +219,8 @@ export default function App() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
                   جستجو و استخراج لحظه‌ای قیمت‌ها
                 </h1>
-                <p className="text-xs text-slate-400">
-                  اطلاعات محصول نظیر قیمت، تخفیف، فروشنده و امتیاز را جستجو کرده و فایل CSV دانلود کنید.
-                </p>
               </div>
 
-              {/* Token Counter Widget */}
               <div className="shrink-0 bg-slate-800/80 border border-slate-700/80 p-4 rounded-xl flex items-center gap-4 relative z-10">
                 <div>
                   <div className="text-[11px] text-slate-400 font-medium">توکن‌های باقی‌مانده</div>
@@ -221,15 +239,13 @@ export default function App() {
               </div>
             </div>
 
-            {/* Search Bar Component */}
             <SearchBar
-              onSearch={(q) => handleSearch(q)}
+              onSearch={(q) => handleSearch(q, 1)}
               isLoading={isLoading}
               tokens={user?.tokens || 0}
               onOpenTokenModal={() => setIsTokenModalOpen(true)}
             />
 
-            {/* Error Alert */}
             {searchError && (
               <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-xl text-xs font-semibold mb-6 flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
@@ -237,11 +253,9 @@ export default function App() {
               </div>
             )}
 
-            {/* Results Header & Tools Bar */}
             {products.length > 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-6 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 
-                {/* Results Count & Query Info */}
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
                     <Search className="w-5 h-5" />
@@ -252,20 +266,14 @@ export default function App() {
                         نتایج جستجو برای «{currentQuery}»
                       </span>
                       <span className="bg-slate-100 text-slate-700 text-xs px-2.5 py-0.5 rounded-full font-bold border border-slate-200">
-                        {toPersianDigits(products.length)} کالا
+                        {toPersianDigits(totalItems || products.length)} کالا
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      برگرفته مستقیم از API دیجی‌کالا | آماده خروجی اکسل
-                    </p>
                   </div>
                 </div>
 
-                {/* Filters, View Toggle & CSV Action */}
                 <div className="flex items-center gap-2 flex-wrap">
                   
-
-                  {/* Grid/Table Layout Switcher */}
                   <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
                     <button
                       type="button"
@@ -289,7 +297,6 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Compare Button (if items selected) */}
                   {selectedProductIds.length >= 2 && (
                     <button
                       type="button"
@@ -301,7 +308,6 @@ export default function App() {
                     </button>
                   )}
 
-                  {/* Export CSV Button */}
                   <button
                     type="button"
                     onClick={handleExportCSV}
@@ -320,18 +326,16 @@ export default function App() {
               </div>
             )}
 
-            {/* Loading State */}
             {isLoading && (
               <div className="py-20 text-center bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
                 <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto" />
                 <div className="space-y-1">
-                  <h3 className="text-base font-bold text-slate-800">در حال دریافت قیمت‌ها از دیجی‌کالا...</h3>
+                  <h3 className="text-base font-bold text-slate-800">در حال دریافت قیمت‌ها...</h3>
                   <p className="text-xs text-slate-500">لطفاً چند لحظه شکیبا باشید. ۱ توکن از اعتبار شما کسر شد.</p>
                 </div>
               </div>
             )}
 
-            {/* Results Grid / Table Layout */}
             {!isLoading && products.length > 0 && (
               <>
                 {layoutMode === 'grid' ? (
@@ -359,10 +363,16 @@ export default function App() {
                     }}
                   />
                 )}
+
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={(pageNum) => handleSearch(currentQuery, pageNum)}
+                  isLoading={isLoading}
+                />
               </>
             )}
 
-            {/* Empty Search State */}
             {!isLoading && products.length === 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-xs">
                 <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -370,16 +380,8 @@ export default function App() {
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-1">کالا یا عبارت موردنظر را سرچ بزنید</h3>
                 <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed mb-6">
-                  کافیست نام محصول (مانند «لپ تاپ ریزر»، «گوشی سامسونگ»، «آیفون ۱۵») را وارد کرده و دکمه جستجو را فشار دهید تا لیست قیمت‌ها استخراج شود.
+                  کافیست نام محصول را وارد کرده و دکمه جستجو را فشار دهید تا لیست قیمت‌ها استخراج شود.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => handleSearch('لپ تاپ ریزر')}
-                  className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition-all shadow-md shadow-indigo-100"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>جستجوی نمونه «لپ تاپ ریزر»</span>
-                </button>
               </div>
             )}
 
@@ -387,16 +389,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-2 font-bold text-slate-700">
-            <span>PriceTrackerPro</span>
-          </div>
-        </div>
-      </footer>
-
-      {/* Modals */}
       <TokenModal
         isOpen={isTokenModalOpen}
         onClose={() => setIsTokenModalOpen(false)}
@@ -408,7 +400,10 @@ export default function App() {
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}
         history={history}
-        onRepeatSearch={(q) => handleSearch(q)}
+        onRepeatSearch={(queryText) => {
+          setIsHistoryModalOpen(false);
+          handleSearch(queryText, 1);
+        }}
       />
 
       <ProductCompareModal

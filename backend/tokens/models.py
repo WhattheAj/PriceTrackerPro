@@ -7,54 +7,54 @@ class TokenWallet(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='wallet',
-        verbose_name='کاربر'
+        verbose_name='User'
     )
     balance = models.PositiveIntegerField(
-        default=50,
-        verbose_name='موجودی توکن'
+        default=10,
+        verbose_name='Token Balance'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = 'کیف پول'
-        verbose_name_plural = 'کیف پول‌ها'
+        verbose_name = 'Token Wallet'
+        verbose_name_plural = 'Token Wallets'
 
     def __str__(self):
-        return f"کیف پول {self.user} - موجودی: {self.balance} توکن"
+        return f"Wallet for {self.user} - Balance: {self.balance} Tokens"
 
 
 class TokenTransaction(models.Model):
     TRANSACTION_TYPES = [
-        ('SIGNUP_BONUS', 'هدیه ثبت‌نام'),
-        ('SEARCH_CONSUMPTION', 'مصرف سرچ'),
-        ('MANUAL_RECHARGE', 'شارژ دستی'),
+        ('SIGNUP_BONUS', 'Signup Bonus'),
+        ('SEARCH_CONSUMPTION', 'Search Consumption'),
+        ('MANUAL_RECHARGE', 'Manual Recharge'),
     ]
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='token_transactions',
-        verbose_name='کاربر'
+        verbose_name='User'
     )
     amount = models.IntegerField(
-        verbose_name='مقدار تغییر'
+        verbose_name='Amount Change'
     )
     transaction_type = models.CharField(
         max_length=30,
         choices=TRANSACTION_TYPES,
-        verbose_name='نوع تراکنش'
+        verbose_name='Transaction Type'
     )
     description = models.CharField(
         max_length=255,
         blank=True,
-        verbose_name='توضیحات'
+        verbose_name='Description'
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        verbose_name = 'تراکنش توکن'
-        verbose_name_plural = 'تراکنش‌های توکن'
+        verbose_name = 'Token Transaction'
+        verbose_name_plural = 'Token Transactions'
         ordering = ['-created_at']
 
     def __str__(self):

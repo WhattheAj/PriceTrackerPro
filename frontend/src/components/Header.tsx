@@ -33,7 +33,10 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center justify-between h-16">
           
           {/* Logo & Brand Name */}
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => onSelectView('dashboard')}>
+          <div 
+            className="flex items-center gap-3 cursor-pointer" 
+            onClick={() => onSelectView(user ? 'dashboard' : 'auth')}
+          >
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-200">
               <Tag className="w-5 h-5 stroke-[2.5]" />
             </div>
@@ -93,15 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </button>
                 </div>
               </>
-            ) : (
-              <button
-                onClick={() => onSelectView('auth')}
-                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm shadow-indigo-200"
-              >
-                <UserIcon className="w-4 h-4" />
-                <span>ورود / ثبت‌نام</span>
-              </button>
-            )}
+            ) : null}
           </div>
 
         </div>
