@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { formatPrice, toPersianDigits } from '../utils/farsi';
-import { Star, ExternalLink, Store, Check, Percent, Copy, CheckCheck } from 'lucide-react';
+import { Star, ExternalLink, Store, Check, Percent, Copy, CheckCheck, BellRing } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   isSelected: boolean;
   onToggleSelect: (id: string | number) => void;
+  onOpenWatchlist?: (product: Product) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   isSelected,
   onToggleSelect,
+  onOpenWatchlist,
 }) => {
   const [copied, setCopied] = useState(false);
   const hasDiscount = product.price.discount_percent > 0;
@@ -111,6 +113,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <div className="flex items-center gap-1">
+          {onOpenWatchlist && (
+            <button
+              type="button"
+              onClick={() => onOpenWatchlist(product)}
+              className="p-2 bg-white hover:bg-amber-50 text-amber-600 border border-slate-200 hover:border-amber-300 rounded-xl transition-all shadow-2xs cursor-pointer"
+              title="تنظیم هشدار افت قیمت"
+            >
+              <BellRing className="w-4 h-4" />
+            </button>
+          )}
+
           <button
             type="button"
             onClick={handleCopyLink}

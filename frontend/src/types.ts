@@ -11,7 +11,7 @@ export interface User {
 }
 
 export interface ProductPrice {
-  selling_price: number; // In Toman or Rial
+  selling_price: number;
   rrp_price: number;
   discount_percent: number;
   currency: 'تومان' | 'ریال';
@@ -43,6 +43,20 @@ export interface SearchHistoryItem {
   timestamp: string;
   tokensUsed: number;
   resultCount: number;
+}
+
+export interface WatchlistItem {
+  id: number;
+  product_id: string;
+  title: string;
+  provider: string;
+  current_price: number;
+  target_price: number;
+  product_url: string;
+  image_url?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export type AuthMode = 'login' | 'signup';

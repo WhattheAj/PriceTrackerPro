@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { User, Product, ViewMode, DisplayLayout, SearchHistoryItem } from './types';
+import { User, Product, ViewMode, DisplayLayout, SearchHistoryItem, WatchlistItem } from './types';
 import { getSavedUser, logoutUser, fetchUserProfileApi } from './services/auth';
-import { searchDigikalaProductsApi, exportProductsCSVApi, fetchSearchHistoryApi } from './services/digikala';
+import { 
+  searchDigikalaProductsApi, 
+  exportProductsCSVApi, 
+  fetchSearchHistoryApi,
+  fetchWatchlistApi,
+  addToWatchlistApi,
+  removeFromWatchlistApi
+} from './services/digikala';
 import { exportProductsToCSV } from './utils/csvExporter';
 import { toPersianDigits, formatPrice } from './utils/farsi';
 
@@ -16,6 +23,8 @@ import { NotFoundPage } from './components/NotFoundPage';
 import { TokenModal } from './components/TokenModal';
 import { SearchHistoryModal } from './components/SearchHistoryModal';
 import { ProductCompareModal } from './components/ProductCompareModal';
+import { WatchlistModal } from './components/WatchlistModal';
+import { WatchlistManageModal } from './components/WatchlistManageModal';
 
 import { 
   FileSpreadsheet, 
@@ -56,6 +65,11 @@ export default function App() {
   const [isCompareModalOpen, setIsCompareModalOpen] = useState(false);
   const [history, setHistory] = useState<SearchHistoryItem[]>([]);
 
+  const [watchlistItems, setWatchlistItems] = useState<WatchlistItem[]>([]);
+  const [isWatchlistModalOpen, setIsWatchlistModalOpen] = useState(false);
+  const [isWatchlistManageOpen, setIsWatchlistManageOpen] = useState(false);
+  const [selectedWatchlistProduct, setSelectedWatchlistProduct] = useState<Product | null>(null);
+
   useEffect(() => {
     async function initUser() {
       const saved = getSavedUser();
@@ -74,6 +88,19 @@ export default function App() {
     initUser();
   }, []);
 
+  useEffect(() => {
+    if (user) {
+      loadWatchlist();
+    }
+  }, [user?.id]);
+
+  const loadWatchlist = async () => {
+    try {
+      const items = await fetchWatchlistApi();
+      setWatchlistItems(items);
+    } catch {}
+  };
+
   const handleAuthSuccess = (loggedUser: User) => {
     setUser(loggedUser);
     setActiveView('dashboard');
@@ -84,6 +111,7 @@ export default function App() {
     setUser(null);
     setActiveView('auth');
     setProducts([]);
+    setWatchlistItems([]);
   };
 
   const handleSearch = async (queryText: string, pageNum = 1, activeUser = user) => {
@@ -176,6 +204,29 @@ export default function App() {
     }
   };
 
+  const handleOpenWatchlistModal = (product: Product) => {
+    setSelectedWatchlistProduct(product);
+    setIsWatchlistModalOpen(true);
+  };
+
+  const handleSaveWatchlist = async (product: Product, targetPrice: number) => {
+    await addToWatchlistApi({
+      product_id: String(product.id),
+      title: product.title_fa,
+      provider: product.seller,
+      current_price: product.price.selling_price,
+      target_price: targetPrice,
+      product_url: product.url,
+      image_url: product.image,
+    });
+    await loadWatchlist();
+  };
+
+  const handleRemoveWatchlist = async (id: number) => {
+    await removeFromWatchlistApi(id);
+    await loadWatchlist();
+  };
+
   const filteredProducts = products.filter((product) => {
     if (onlyInStock && product.status !== 'marketable') return false;
     if (selectedStore === 'digikala') {
@@ -216,6 +267,8 @@ export default function App() {
         onSelectView={setActiveView}
         onOpenTokenModal={() => setIsTokenModalOpen(true)}
         onOpenHistoryModal={handleOpenHistoryModal}
+        onOpenWatchlistModal={() => setIsWatchlistManageOpen(true)}
+        watchlistCount={watchlistItems.length}
         onLogout={handleLogout}
       />
 
@@ -436,6 +489,7 @@ export default function App() {
                         product={product}
                         isSelected={selectedProductIds.includes(product.id)}
                         onToggleSelect={toggleSelectProduct}
+                        onOpenWatchlist={handleOpenWatchlistModal}
                       />
                     ))}
                   </div>
@@ -515,6 +569,20 @@ export default function App() {
         isOpen={isCompareModalOpen}
         onClose={() => setIsCompareModalOpen(false)}
         products={selectedForCompare}
+      />
+
+      <WatchlistModal
+        isOpen={isWatchlistModalOpen}
+        onClose={() => setIsWatchlistModalOpen(false)}
+        product={selectedWatchlistProduct}
+        onSave={handleSaveWatchlist}
+      />
+
+      <WatchlistManageModal
+        isOpen={isWatchlistManageOpen}
+        onClose={() => setIsWatchlistManageOpen(false)}
+        items={watchlistItems}
+        onRemove={handleRemoveWatchlist}
       />
 
     </div>

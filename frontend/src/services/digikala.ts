@@ -1,5 +1,5 @@
 import { apiClient } from './auth';
-import { Product, SearchHistoryItem } from '../types';
+import { Product, SearchHistoryItem, WatchlistItem } from '../types';
 
 export interface SearchApiResponse {
   products: Product[];
@@ -71,4 +71,31 @@ export async function exportProductsCSVApi(products: Product[]): Promise<void> {
 export async function fetchSearchHistoryApi(): Promise<SearchHistoryItem[]> {
   const response = await apiClient.get('/search/history/');
   return response.data || [];
+}
+
+export async function fetchWatchlistApi(): Promise<WatchlistItem[]> {
+  const response = await apiClient.get('/watchlist/');
+  return response.data || [];
+}
+
+export async function addToWatchlistApi(data: {
+  product_id: string;
+  title: string;
+  provider: string;
+  current_price: number;
+  target_price: number;
+  product_url: string;
+  image_url?: string;
+}): Promise<WatchlistItem> {
+  const response = await apiClient.post('/watchlist/', data);
+  return response.data;
+}
+
+export async function removeFromWatchlistApi(id: number): Promise<void> {
+  await apiClient.delete(`/watchlist/${id}/`);
+}
+
+export async function updateWatchlistTargetPriceApi(id: number, targetPrice: number): Promise<WatchlistItem> {
+  const response = await apiClient.patch(`/watchlist/${id}/`, { target_price: targetPrice });
+  return response.data;
 }

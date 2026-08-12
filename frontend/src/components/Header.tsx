@@ -7,7 +7,8 @@ import {
   LogOut, 
   History, 
   PlusCircle, 
-  Tag
+  Tag,
+  Bookmark
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -16,6 +17,8 @@ interface HeaderProps {
   onSelectView: (view: ViewMode) => void;
   onOpenTokenModal: () => void;
   onOpenHistoryModal: () => void;
+  onOpenWatchlistModal?: () => void;
+  watchlistCount?: number;
   onLogout: () => void;
 }
 
@@ -25,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectView,
   onOpenTokenModal,
   onOpenHistoryModal,
+  onOpenWatchlistModal,
+  watchlistCount = 0,
   onLogout,
 }) => {
   return (
@@ -63,6 +68,22 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   <PlusCircle className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform mr-1" />
                 </div>
+
+                {onOpenWatchlistModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenWatchlistModal}
+                    className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer relative"
+                    title="لیست هشدارهای من"
+                  >
+                    <Bookmark className="w-5 h-5" />
+                    {watchlistCount > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-white">
+                        {toPersianDigits(watchlistCount)}
+                      </span>
+                    )}
+                  </button>
+                )}
 
                 <button
                   type="button"
