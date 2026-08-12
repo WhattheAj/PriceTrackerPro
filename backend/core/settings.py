@@ -162,3 +162,15 @@ CACHES = {
         'LOCATION': 'price-tracker-cache',
     }
 }
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+
+CELERY_BEAT_SCHEDULE = {
+    'check_watchlist_price_drops_every_6_hours': {
+        'task': 'tracker.tasks.check_watchlist_price_drops',
+        'schedule': timedelta(hours=6),
+    },
+}
