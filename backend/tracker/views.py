@@ -1,6 +1,8 @@
 import csv
+import hashlib
 from django.http import HttpResponse
 from django.db import transaction
+from django.core.cache import cache
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -25,19 +27,36 @@ class ProductSearchView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        with transaction.atomic():
-            wallet, created = TokenWallet.objects.select_for_update().get_or_create(
+        query_hash = hashlib.md5(query.lower().encode('utf-8')).hexdigest()
+        cache_key = f"search_cache:{request.user.id}:{query_hash}:{page}"
+        cached_data = cache.get(cache_key)
+
+        wallet, created = TokenWallet.objects.get_or_create(
+            user=request.user,
+            defaults={'balance': 10}
+        )
+        if created:
+            TokenTransaction.objects.create(
                 user=request.user,
-                defaults={'balance': 10}
+                amount=10,
+                transaction_type='SIGNUP_BONUS',
+                description=f"Signup bonus (+10 tokens) for {request.user.first_name} {request.user.last_name}"
             )
 
-            if created:
-                TokenTransaction.objects.create(
-                    user=request.user,
-                    amount=10,
-                    transaction_type='SIGNUP_BONUS',
-                    description=f"Signup bonus (+10 tokens) for {request.user.first_name} {request.user.last_name}"
-                )
+        if cached_data:
+            return Response({
+                "query": query,
+                "products": cached_data.get("products", []),
+                "results": cached_data.get("products", []),
+                "total_items": cached_data.get("total_items", 0),
+                "total_pages": cached_data.get("total_pages", 1),
+                "current_page": page,
+                "tokens_remaining": wallet.balance,
+                "from_cache": True
+            }, status=status.HTTP_200_OK)
+
+        with transaction.atomic():
+            wallet = TokenWallet.objects.select_for_update().get(user=request.user)
 
             if wallet.balance < 1:
                 return Response(
@@ -73,6 +92,8 @@ class ProductSearchView(APIView):
                 tokens_used=1
             )
 
+            cache.set(cache_key, search_result, 900)
+
             return Response({
                 "query": query,
                 "products": search_result.get("products", []),
@@ -80,7 +101,8 @@ class ProductSearchView(APIView):
                 "total_items": search_result.get("total_items", 0),
                 "total_pages": search_result.get("total_pages", 1),
                 "current_page": page,
-                "tokens_remaining": wallet.balance
+                "tokens_remaining": wallet.balance,
+                "from_cache": False
             }, status=status.HTTP_200_OK)
 
 
