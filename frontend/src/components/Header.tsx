@@ -32,7 +32,6 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* Logo & Brand Name */}
           <div 
             className="flex items-center gap-3 cursor-pointer" 
             onClick={() => onSelectView(user ? 'dashboard' : 'auth')}
@@ -45,17 +44,13 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-
-
-          {/* Right Action / User Profile Status */}
           <div className="flex items-center gap-3">
             {user ? (
               <>
-                {/* Token Balance Badge */}
                 <div 
                   onClick={onOpenTokenModal}
                   className="flex items-center gap-2 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-3 py-1.5 rounded-xl cursor-pointer transition-all shadow-2xs group"
-                  title="کلیک جهت افزایش موجودی توکن"
+                  title="افزایش موجودی توکن"
                 >
                   <div className="w-6 h-6 rounded-lg bg-amber-500 text-white flex items-center justify-center">
                     <Coins className="w-3.5 h-3.5" />
@@ -69,16 +64,15 @@ export const Header: React.FC<HeaderProps> = ({
                   <PlusCircle className="w-4 h-4 text-amber-600 group-hover:scale-110 transition-transform mr-1" />
                 </div>
 
-                {/* History Button */}
                 <button
+                  type="button"
                   onClick={onOpenHistoryModal}
-                  className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all"
+                  className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
                   title="تاریخچه جستجوها"
                 >
                   <History className="w-5 h-5" />
                 </button>
 
-                {/* User Info Avatar & Logout */}
                 <div className="flex items-center gap-2 border-r border-slate-200 mr-1 pr-3">
                   <div className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs border border-slate-300">
                     <UserIcon className="w-4 h-4 text-slate-600" />
@@ -88,15 +82,25 @@ export const Header: React.FC<HeaderProps> = ({
                     <span className="text-[10px] text-slate-500 dir-ltr text-right">{user.phone}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={onLogout}
-                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mr-1"
+                    className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors mr-1 cursor-pointer"
                     title="خروج از حساب"
                   >
                     <LogOut className="w-4 h-4" />
                   </button>
                 </div>
               </>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                onClick={() => onSelectView('auth')}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm shadow-indigo-200 cursor-pointer"
+              >
+                <UserIcon className="w-4 h-4" />
+                <span>ورود / ثبت‌نام</span>
+              </button>
+            )}
           </div>
 
         </div>

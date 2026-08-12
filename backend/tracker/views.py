@@ -7,7 +7,8 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
 from tokens.models import TokenWallet, TokenTransaction
-from tracker.models import SearchLog
+from tracker.models import SearchLog, ProductWatchlist
+from tracker.serializers import ProductWatchlistSerializer
 from tracker.services import MultiStoreAggregator
 
 
@@ -181,3 +182,51 @@ class SearchHistoryView(APIView):
             for log in logs
         ]
         return Response(data, status=status.HTTP_200_OK)
+
+
+class WatchlistListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        items = ProductWatchlist.objects.filter(user=request.user, is_active=True)
+        serializer = ProductWatchlistSerializer(items, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        product_id = str(request.data.get('product_id', '')).strip()
+        provider = str(request.data.get('provider', '')).strip()
+
+        if not product_id or not provider:
+            return Response({'error': 'product_id and provider are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        instance = ProductWatchlist.objects.filter(user=request.user, product_id=product_id, provider=provider).first()
+        serializer = ProductWatchlistSerializer(instance, data=request.data, partial=True) if instance else ProductWatchlistSerializer(data=request.data)
+
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED if not instance else status.HTTP_200_OK)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class WatchlistDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            item = ProductWatchlist.objects.get(pk=pk, user=request.user)
+            item.delete()
+            return Response({'success': True}, status=status.HTTP_200_OK)
+        except ProductWatchlist.DoesNotExist:
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def patch(self, request, pk):
+        try:
+            item = ProductWatchlist.objects.get(pk=pk, user=request.user)
+            serializer = ProductWatchlistSerializer(item, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except ProductWatchlist.DoesNotExist:
+            return Response({'error': 'Item not found.'}, status=status.HTTP_404_NOT_FOUND)

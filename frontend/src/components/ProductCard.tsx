@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Product } from '../types';
 import { formatPrice, toPersianDigits } from '../utils/farsi';
-import { Star, ExternalLink, Store, Check, Percent } from 'lucide-react';
+import { Star, ExternalLink, Store, Check, Percent, Copy, CheckCheck } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -14,7 +14,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   isSelected,
   onToggleSelect,
 }) => {
+  const [copied, setCopied] = useState(false);
   const hasDiscount = product.price.discount_percent > 0;
+
+  const isTechnolife = product.seller.includes('تکنولایف') || product.seller.toLowerCase().includes('technolife');
+
+  const handleCopyLink = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (product.url) {
+      navigator.clipboard.writeText(product.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    }
+  };
 
   return (
     <div 
@@ -25,10 +37,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       }`}
     >
       <div>
-        {/* Top Header Controls & Badges */}
         <div className="p-3 pb-0 flex items-center justify-between gap-2 relative z-10">
-          
-          {/* Select Checkbox for CSV Batch Export */}
           <button
             type="button"
             onClick={() => onToggleSelect(product.id)}
@@ -46,7 +55,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <span>{isSelected ? 'انتخاب شده' : 'انتخاب'}</span>
           </button>
 
-          {/* Discount Badge */}
           {hasDiscount && (
             <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-2xs">
               <Percent className="w-3 h-3" />
@@ -55,7 +63,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           )}
         </div>
 
-        {/* Product Image Container */}
         <div className="px-4 py-3 flex items-center justify-center h-48 bg-white relative">
           <img
             src={product.image}
@@ -63,26 +70,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             className="max-h-40 max-w-full object-contain hover:scale-105 transition-transform duration-300"
             loading="lazy"
             onError={(e) => {
-              // Fallback image if url is broken
               (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?w=500&q=80';
             }}
           />
         </div>
 
-        {/* Title & Specs */}
         <div className="p-4 pt-1 border-t border-slate-100">
           <h3 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-2 leading-relaxed min-h-[40px]" title={product.title_fa}>
             {product.title_fa}
           </h3>
 
-          {/* Seller & Brand Badge */}
           <div className="flex items-center justify-between gap-2 mt-2.5 text-[11px] text-slate-500">
-            <span className="flex items-center gap-1 text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/80">
-              <Store className="w-3 h-3 text-slate-400" />
+            <span className={`flex items-center gap-1 px-2 py-0.5 rounded-md border font-medium ${
+              isTechnolife 
+                ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}>
+              <Store className="w-3 h-3" />
               <span className="truncate max-w-[120px]">{product.seller}</span>
             </span>
 
-            {/* Rating */}
             <div className="flex items-center gap-1 bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded-md font-bold">
               <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
               <span>{toPersianDigits(product.rating.rate.toFixed(1))}</span>
@@ -91,7 +98,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
       </div>
 
-      {/* Footer Price & Action */}
       <div className="p-4 pt-2 bg-slate-50/80 border-t border-slate-100 flex items-center justify-between gap-2">
         <div className="flex flex-col">
           {hasDiscount && (
@@ -104,15 +110,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </span>
         </div>
 
-        <a
-          href={product.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2 bg-white hover:bg-indigo-600 hover:text-white text-indigo-600 border border-slate-200 rounded-xl transition-all shadow-2xs group flex items-center justify-center"
-          title="مشاهده مستقیم در دیجی‌کالا"
-        >
-          <ExternalLink className="w-4 h-4" />
-        </a>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="p-2 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl transition-all shadow-2xs cursor-pointer"
+            title={copied ? 'کپی شد!' : 'کپی لینک محصول'}
+          >
+            {copied ? <CheckCheck className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+          </button>
+
+          <a
+            href={product.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 bg-white hover:bg-indigo-600 hover:text-white text-indigo-600 border border-slate-200 rounded-xl transition-all shadow-2xs group flex items-center justify-center"
+            title="مشاهده مستقیم در فروشگاه"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </a>
+        </div>
       </div>
 
     </div>
