@@ -23,7 +23,7 @@ export const ProductCompareModal: React.FC<ProductCompareModalProps> = ({
         {/* Header */}
         <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
           <div>
-            <h3 className="font-bold text-slate-900 text-base">جدول مقایسه محصولات دیجی‌کالا</h3>
+            <h3 className="font-bold text-slate-900 text-base">جدول مقایسه محصولات</h3>
             <p className="text-xs text-slate-500">مقایسه قیمت، میزان تخفیف و فروشنده {toPersianDigits(products.length)} کالا</p>
           </div>
           <button

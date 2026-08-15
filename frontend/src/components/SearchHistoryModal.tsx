@@ -29,7 +29,7 @@ export const SearchHistoryModal: React.FC<SearchHistoryModalProps> = ({
               <History className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-base">تاریخچه جستجوهای دیجی‌کالا</h3>
+              <h3 className="font-bold text-slate-900 text-base">تاریخچه جستجوهای شما</h3>
               <p className="text-xs text-slate-500">لیست کلمات جستجو شده و مصرف توکن</p>
             </div>
           </div>

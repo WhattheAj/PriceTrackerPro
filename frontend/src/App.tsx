@@ -112,6 +112,9 @@ export default function App() {
     setActiveView('auth');
     setProducts([]);
     setWatchlistItems([]);
+    setCurrentQuery('');
+    setSelectedProductIds([]);
+    window.history.pushState({}, '', window.location.pathname);
   };
 
   const handleSearch = async (queryText: string, pageNum = 1, activeUser = user) => {

@@ -137,7 +137,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onAuthSuccess }) => {
                   <Search className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white mb-0.5">اتصال مستقیم به دیجی‌کالا</h4>
+                  <h4 className="text-sm font-bold text-white mb-0.5">اتصال مستقیم به دیجی‌کالا و تکنولایف</h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     استخراج لحظه‌ای آخرین قیمت، درصد تخفیف، فروشنده و امتیاز محصول.
                   </p>

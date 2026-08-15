@@ -94,7 +94,7 @@ export const TokenModal: React.FC<TokenModalProps> = ({
                   </div>
                   <div>
                     <div className="text-sm font-bold text-slate-800">بسته آزمایشی (۱۰ توکن)</div>
-                    <div className="text-[11px] text-slate-500">مناسب ۱۰ بار جستجوی دیجی‌کالا</div>
+                    <div className="text-[11px] text-slate-500">مناسب ۱۰ بار جستجوی محصولات</div>
                   </div>
                 </div>
                 <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200">
