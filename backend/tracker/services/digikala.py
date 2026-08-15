@@ -27,12 +27,20 @@ class DigikalaScraper(BaseScraper):
         self._total_pages = pager_info.get("total_pages", 1)
 
         products: List[ProductOutput] = []
+        seen_ids = set()
+
         for p_widget in product_widgets:
             if p_widget.get("type") != "product":
                 continue
 
             p_data = p_widget.get("data", {})
             p_id = p_data.get("id")
+
+            if not p_id or p_id in seen_ids:
+                continue
+
+            seen_ids.add(p_id)
+
             title_fa = p_data.get("title_fa", "")
             title_en = p_data.get("title_en", "")
             uri = p_data.get("url", {}).get("uri", "")

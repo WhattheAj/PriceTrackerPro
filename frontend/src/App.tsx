@@ -229,11 +229,13 @@ export default function App() {
 
   const filteredProducts = products.filter((product) => {
     if (onlyInStock && product.status !== 'marketable') return false;
+    const sellerStr = product.seller || '';
+    const sellerLower = sellerStr.toLowerCase();
     if (selectedStore === 'digikala') {
-      return product.seller.includes('دیجی‌کالا') || product.seller.toLowerCase().includes('digikala');
+      return sellerStr.includes('دیجی‌کالا') || sellerStr.includes('دیجی کالا') || sellerLower.includes('digikala');
     }
     if (selectedStore === 'technolife') {
-      return product.seller.includes('تکنولایف') || product.seller.toLowerCase().includes('technolife');
+      return sellerStr.includes('تکنولایف') || sellerLower.includes('technolife');
     }
     return true;
   });
@@ -483,9 +485,9 @@ export default function App() {
               <>
                 {layoutMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-                    {sortedProducts.map((product) => (
+                    {sortedProducts.map((product, index) => (
                       <ProductCard
-                        key={product.id}
+                        key={`${product.id}-${index}`}
                         product={product}
                         isSelected={selectedProductIds.includes(product.id)}
                         onToggleSelect={toggleSelectProduct}

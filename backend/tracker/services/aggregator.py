@@ -16,6 +16,7 @@ class MultiStoreAggregator:
         total_items = 0
         total_pages = 1
         errors = []
+        seen_ids = set()
 
         def run_scraper(scraper_cls):
             instance = scraper_cls()
@@ -28,7 +29,13 @@ class MultiStoreAggregator:
             for future in as_completed(futures):
                 try:
                     instance, products = future.result()
-                    all_products.extend([p.to_dict() for p in products])
+                    for p in products:
+                        p_dict = p.to_dict()
+                        p_id = p_dict.get("id")
+                        if p_id and p_id not in seen_ids:
+                            seen_ids.add(p_id)
+                            all_products.append(p_dict)
+
                     total_items += instance.total_items
                     if instance.total_pages > total_pages:
                         total_pages = instance.total_pages

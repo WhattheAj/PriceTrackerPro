@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pricetracker_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pricetracker}
+      POSTGRES_USER: ${POSTGRES_USER:-pricetracker_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pricetracker_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+
+  redis:
+    image: redis:7-alpine
+    container_name: pricetracker_redis
+    ports:
+      - "6379:6379"
+    restart: always
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pricetracker_backend
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 2 --timeout 120
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-secret-key-change-in-prod}
+      DATABASE_URL: postgres://${POSTGRES_USER:-pricetracker_user}:${POSTGRES_PASSWORD:-pricetracker_pass}@postgres:5432/${POSTGRES_DB:-pricetracker}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    restart: always
+
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pricetracker_celery_worker
+    command: celery -A core worker -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-secret-key-change-in-prod}
+      DATABASE_URL: postgres://${POSTGRES_USER:-pricetracker_user}:${POSTGRES_PASSWORD:-pricetracker_pass}@postgres:5432/${POSTGRES_DB:-pricetracker}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+    restart: always
+
+  celery_beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: pricetracker_celery_beat
+    command: celery -A core beat -l info
+    volumes:
+      - ./backend:/app
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-secret-key-change-in-prod}
+      DATABASE_URL: postgres://${POSTGRES_USER:-pricetracker_user}:${POSTGRES_PASSWORD:-pricetracker_pass}@postgres:5432/${POSTGRES_DB:-pricetracker}
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      - backend
+      - redis
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: pricetracker_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  postgres_data:
